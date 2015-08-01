@@ -1,0 +1,6 @@
+#files not to include in github#
+node_modules
+bower_components
+build
+
+*.7z
