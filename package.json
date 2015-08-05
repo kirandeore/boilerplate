@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "boilerplate",
   "version": "1.0.0",
   "description": "This is read me",
   "main": "gulpfile.js",
@@ -22,7 +22,7 @@
     "type": "git",
     "url": "git+https://github.com/kirandeore/boilerplate.git"
   },
-  "author": "",
+  "author": "kirandeore",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/kirandeore/boilerplate/issues"
