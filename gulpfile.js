@@ -17,8 +17,11 @@ var gulp = require("gulp"),
     //this module can parse arguments
     argv = require('yargs').argv,
     //if else conditions in gulp
-    gulpif = require('gulp-if');
-
+    gulpif = require('gulp-if'),
+    //gulp-util logs errors
+    gutil = require('gulp-util'),
+    //set permissions on files and folders
+    chmod = require('gulp-chmod');
 
 var ops = {
   debug: false
@@ -36,44 +39,61 @@ gulp.task("buildViewmodels", function(){
     // css/**/*.css include all css from subdirectories too
     // !css/style.css  exclude style.css
     // *.+(js|css)  include js and css files
-    console.log(ops.debug + " hey");
     gulp.src('src/public/app/viewmodels/*.js')
     //gulp.src(['src/app/viewmodels/*.js', '!src/app/viewmodels/*.min.js'])
         .pipe(plumber()) //plumber is initialized before JS is checked for errors by renaming and uglify modules
-        .pipe(rename({suffix:'.min'}))
-        .pipe(gulpif(!ops.debug, uglify()))
+        //.pipe(rename({suffix:'.min'}))
+        .pipe(gulpif(!ops.debug, uglify().on('error', gutil.log)))
+        .pipe(chmod(777))
         .pipe(gulp.dest('build/public/app/viewmodels'));
 
+    gulp.src('src/public/app/main.js')
+        .pipe(plumber())
+        .pipe(rename({suffix:'.min'}))
+        .pipe(gulpif(!ops.debug, uglify().on('error', gutil.log)))
+        .pipe(gulp.dest('build/public/app'));
 });
 
 //compile scss
 gulp.task('buildCss', function(){
-    gulp.src('src/public/app/scss/*.scss')
+    gulp.src(['src/public/app/scss/*.scss', 'src/public/app/css/*.css'])
         .pipe(plumber())  //plumber is initialized before compass compiles
-        .pipe(compass({
-            config_file: './config.rb',
-            css: 'build/public/app/css',
-            sass: 'src/public/app/scss',
-            require: ['susy']
-        }))
+        .pipe(chmod(777))
         .pipe(gulp.dest('build/public/app/css'));
+});
+
+//move UI libraries
+gulp.task('buildUIlib', function(){
+    gulp.src(['src/public/lib/**', 'bower_components/**'])
+        .pipe(plumber())  //plumber is initialized before compass compiles
+        .pipe(gulp.dest('build/public/lib'));
+});
+
+//move images to build
+gulp.task('buildAssets', function(){
+    gulp.src('src/public/app/assets/**')
+        .pipe(plumber())  //plumber is initialized before compass compiles
+        .pipe(chmod(777))
+        .pipe(gulp.dest('build/public/app/assets'));
 });
 
 //move HTML files to build
 gulp.task('buildHtml', function(){
     gulp.src('src/public/app/views/*.html')
         .pipe(plumber())  //plumber is initialized
+        .pipe(chmod(777))
         .pipe(gulp.dest('build/public/app/views'));
 
     gulp.src('src/public/index.html')
         .pipe(plumber())  //plumber is initialized
+        .pipe(chmod(777))
         .pipe(gulp.dest('build/public'))
         //.pipe(reload({stream: true})); //browser sync reload is last step after moving files;
 });
 
-//clean build folder
-gulp.task('clean-folder', function(cb){
-    del(['build/**'], cb);
+//clean build/public folder
+gulp.task('cleanui-folder', function(cb){
+    del(['build/public/**'], cb);
 });
 
 gulp.task('watch', function(){
@@ -101,16 +121,24 @@ gulp.task('watch', function(){
     gulp.watch('src/public/**/*.html', function(){
         runSequence('buildHtml', reload);
     });
+
+    gulp.watch(['src/public/lib/**', 'bower_components/**'], function(){
+        runSequence('buildUIlib', reload);
+    });
+
+    gulp.watch('src/public/app/assets/**', function(){
+        runSequence('buildAssets', reload);
+    });
 });
 
-gulp.task("build", function(cb){
+gulp.task("buildui", function(cb){
     if(argv.debug){
         ops.debug = true;
     }
 
     //ops.buildOnly = true;
 
-    runSequence('clean-folder', ['buildHtml', 'buildViewmodels', 'buildCss'], cb);
+    runSequence('cleanui-folder', ['buildHtml', 'buildViewmodels', 'buildCss', 'buildUIlib', 'buildAssets'], cb);
 });
 
 gulp.task("default", function(cb){
@@ -118,5 +146,5 @@ gulp.task("default", function(cb){
         ops.debug = true;
     }
 
-    runSequence(['buildCss', 'buildHtml', 'buildViewmodels'],'watch', cb);
+    runSequence('buildui','watch', cb);
 });
