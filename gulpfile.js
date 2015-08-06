@@ -113,7 +113,7 @@ gulp.task('watch', function(){
     gulp.watch('src/public/app/viewmodels/*.js', function(){
         runSequence('buildViewmodels', reload);
     });
-    gulp.watch('src/public/app/scss/*.scss', function(){
+    gulp.watch(['src/public/app/scss/*.scss', 'src/public/app/css/*.css'], function(){
         runSequence('buildCss', reload);
     });
 
