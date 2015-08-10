@@ -199,7 +199,13 @@ gulp.task('watchServer', function(){
     //watch the src folder for changes and compile it to build, also restart server
     gulp.watch('src/private/**/*.js', function(){
         console.log("deploying new files");
-        runSequence('deployServerFiles', server.restart);
+        runSequence('deployServerFiles', 'server:restart');
+    });
+});
+
+gulp.task( 'server:restart', function() {
+    server.restart( function( error ) {
+        if( ! error ) browserSync.reload();
     });
 });
 
