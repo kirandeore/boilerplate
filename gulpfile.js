@@ -21,7 +21,9 @@ var gulp = require("gulp"),
     //gulp-util logs errors
     gutil = require('gulp-util'),
     //set permissions on files and folders
-    chmod = require('gulp-chmod');
+    chmod = require('gulp-chmod'),
+    //execute command line commands
+    server = require('gulp-develop-server');
 
 var ops = {
   debug: false
@@ -98,15 +100,15 @@ gulp.task('cleanui-folder', function(cb){
 
 gulp.task('watch', function(){
     browserSync({
-        //proxy: 'localhost:3000',
+        proxy: 'localhost:3000',
         port: 44085,
         open: true,
         notify: true,
         reloadDelay: 1000,
-        reloadDebounce: 1000,
-        server: {
-            baseDir: "./build/public"
-        }
+        reloadDebounce: 1000
+        //server: {
+        //    baseDir: "./build/public"
+        //}
     });
 
     //watch the src folder for changes and compile it to build
@@ -141,10 +143,88 @@ gulp.task("buildui", function(cb){
     runSequence('cleanui-folder', ['buildHtml', 'buildViewmodels', 'buildCss', 'buildUIlib', 'buildAssets'], cb);
 });
 
+/**
+ * server building scripts
+ * **/
+
+//clean build/private folder
+gulp.task('cleanserver-folder', function(cb){
+    del(['build/private/**'], cb);
+});
+
+gulp.task("deployServerFiles", function(){
+    if(argv.debug){
+        ops.debug = true;
+    }
+    // glob patterns
+    // css/*.css   include css files
+    // css/**/*.css include all css from subdirectories too
+    // !css/style.css  exclude style.css
+    // *.+(js|css)  include js and css files
+    gulp.src('src/private/controllers/*.js')
+        //gulp.src(['src/app/viewmodels/*.js', '!src/app/viewmodels/*.min.js'])
+        .pipe(plumber()) //plumber is initialized before JS is checked for errors by renaming and uglify modules
+        //.pipe(rename({suffix:'.min'}))
+        .pipe(gulpif(!ops.debug, uglify().on('error', gutil.log)))
+        .pipe(chmod(777))
+        .pipe(gulp.dest('build/private/controllers'));
+
+    gulp.src('src/private/models/*.js')
+        .pipe(plumber())
+        //.pipe(rename({suffix:'.min'}))
+        .pipe(gulpif(!ops.debug, uglify().on('error', gutil.log)))
+        .pipe(gulp.dest('build/private/models'));
+
+    gulp.src('src/private/server.js')
+        .pipe(plumber())
+        //.pipe(rename({suffix:'.min'}))
+        .pipe(gulpif(!ops.debug, uglify().on('error', gutil.log)))
+        .pipe(gulp.dest('build/private'));
+
+    gulp.src(['src/private/node_modules', 'src/private/package.json'])
+        .pipe(plumber())
+        .pipe(gulp.dest('build/private'));
+});
+
+//run this
+gulp.task('buildserver', function(cb){
+    if(argv.debug){
+        ops.debug = true;
+    }
+
+    runSequence('cleanserver-folder', ['deployServerFiles'], cb);
+});
+
+gulp.task('watchServer', function(){
+    //watch the src folder for changes and compile it to build, also restart server
+    gulp.watch('src/private/**/*.js', function(){
+        console.log("deploying new files");
+        runSequence('deployServerFiles', server.restart);
+    });
+});
+
+gulp.task('server:start', function(cb){
+
+    server.listen({ path:  './build/private/server.js'});
+    //exec('node build/private/server.js', function(err, stdout, stderr){
+    //    console.log(stdout);
+    //    console.log(stderr);
+    //    cb(err);
+    //});
+});
+
+gulp.task("defaultserver", function(cb){
+    if(argv.debug){
+        ops.debug = true;
+    }
+
+    runSequence(['server:start','watchServer'], cb);
+});
+
 gulp.task("default", function(cb){
     if(argv.debug){
         ops.debug = true;
     }
 
-    runSequence('buildui','watch', cb);
+    runSequence('buildui',['watch', 'defaultserver'], cb);
 });
